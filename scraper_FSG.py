@@ -1,3 +1,4 @@
+import traceback
 import requests
 from bs4 import BeautifulSoup
 from newspaper import network
@@ -50,15 +51,98 @@ def reads_links(filename):
         sub_lists.append(links[i:i+100])
     return sub_lists
 
-def saves_data(sub_lists):
+def gets_body(soup):
+    content = soup.find("div", class_="group-contenido-datos")
+    # The hechos are fix in the html
+    hechos = content.find("div", class_="field-name-body").find_all("p")
+    hechos = " ".join([p.text for p in hechos])
+    
+    intervenion = content.find("div", class_="field-name-field-intervencion")
+    resultado = content.find("div", class_="field-name-field-resultado")
+    
+    if  intervenion:
+        intervenion = intervenion.find_all("p")
+        intervenion = " ".join([p.text for p in intervenion])
+  
+    if resultado:
+        resultado = resultado.find_all("p")
+        resultado = " ".join([p.text for p in resultado])
+    info_body = {
+        "hechos": hechos,
+        "intervencion": intervenion,
+        "resultado": resultado
+    }
+    return info_body 
+
+def get_datos(soup):
+    datos = soup.find("div", class_="group-datos")
+    colum_one = datos.find("div", class_="group-columna-uno")
+    column_two = datos.find("div", class_="group-columna-dos")
+    
+    dates = colum_one.find_all("span", class_="date-display-single")
+    # Gets the dates
+    if len(dates) == 2:
+        fecha_hechos = dates[0]["content"]
+        fecha_denuncia = dates[0]["content"]
+    elif len(dates) == 1:
+        fecha_hechos = dates[0]["content"]
+
+    provincia = colum_one.find("div", class_="field-name-field-provincia")
+    if provincia:
+        provincia = provincia.find("div", class_="field-item").text
+
+    # Gets the column two
+    events  = column_two.find_all("div", class_="even")
+    if len(events)>=3:
+        ambito = events.pop(0).text
+        tipo_desciminacion = events.pop(0).text
+        #Found the links of references
+        reference = []
+        for event in events:
+            a = event.find("a")
+            if a:
+                reference.append(a["href"])
+    elif len(events) == 2:
+        ambito = events[0].text
+        tipo_desciminacion = events[1].text
+        reference = None
+    elif len(events) == 1:
+        ambito = events[0].text
+        tipo_desciminacion = None
+        reference = None
+    info = {
+        "fecha_hechos": fecha_hechos,
+        "fecha_denuncia": fecha_denuncia,
+        "provincia": provincia,
+        "ambito": ambito,
+        "tipo_desciminacion": tipo_desciminacion,
+        "reference": reference
+    }
+    return info
+
+def saves_data(sub_lists, going=0):
     for i, sub_list in enumerate(sub_lists):
-        df = scrape_urls(sub_list)
-        df.to_csv(f"informesdiscriminacion_{i}.csv", index=False)
-        sleep(random.randint(20, 60))
-        print(f"Batch {i} saved")
+        values = []
+        for link in sub_list:
+            print(link)
+            try:
+                html = network.get_html_2XX_only(link)
+                soup = BeautifulSoup(html, 'html.parser')
+                info_body = gets_body(soup)
+                info_datos = get_datos(soup)
+                info = {**info_body, **info_datos} # merge the two dictionaries
+                values.append(info)
+            except AttributeError:
+                print(traceback.print_exc())
+                with open(file="error.txt", mode="a") as f:
+                    f.write(f"{link}\n")
+        df = pd.DataFrame(values)
+        df.to_csv(f"data_discriminacion_{going+i}.csv", index=False)
+        print(f"Batch {going+i} saved")
 
     
 
 if __name__ == '__main__':
+    going = 20
     sub_lists = reads_links("links.txt")
-    saves_data(sub_lists)
+    saves_data(sub_lists[going:], going)
