@@ -143,6 +143,6 @@ def saves_data(sub_lists, going=0):
     
 
 if __name__ == '__main__':
-    going = 20
+    going = 21
     sub_lists = reads_links("links.txt")
     saves_data(sub_lists[going:], going)
