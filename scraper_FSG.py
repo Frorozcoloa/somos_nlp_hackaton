@@ -131,18 +131,19 @@ def saves_data(sub_lists, going=0):
                 info_body = gets_body(soup)
                 info_datos = get_datos(soup)
                 info = {**info_body, **info_datos} # merge the two dictionaries
+                info["link"] = link
                 values.append(info)
             except AttributeError:
                 print(traceback.print_exc())
                 with open(file="error.txt", mode="a") as f:
                     f.write(f"{link}\n")
         df = pd.DataFrame(values)
-        df.to_csv(f"data_discriminacion_{going+i}.csv", index=False)
+        df.to_csv(f"data_discriminacion_v2_{going+i}.csv", index=False)
         print(f"Batch {going+i} saved")
 
     
 
 if __name__ == '__main__':
-    going = 21
+    going= 0
     sub_lists = reads_links("links.txt")
     saves_data(sub_lists[going:], going)
