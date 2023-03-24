@@ -9,13 +9,14 @@ from GoogleNews import GoogleNews
 import newspaper as ns
 import click 
 from datetime import datetime
+from time import sleep
+import random
 
 def scrape_urls(webpage_urls):
     """
     Utiliza los webpages para luego scraper y asignar una categoria a la noticia
     Args:
         webpage_urls (list): Urls a las cuales se le quieren hacer los scraping
-        category (str): nombre de la categoria
     Returns:
         df: DataFrame con las noticas no duplicadadas
     """    
@@ -30,7 +31,10 @@ def scrape_urls(webpage_urls):
             article.download()
             article.parse()
             
-            news_date = datetime.strftime(article.publish_date, "%Y-%m-%d")
+            if article.publish_date == None:
+                news_date = datetime.strftime(datetime.now(), "%Y-%m-%d")
+            else:
+                news_date = datetime.strftime(article.publish_date, "%Y-%m-%d")
 
             print(news_date)
             scraped_info[i] = {'news_id': uuid.uuid4(),
@@ -42,6 +46,7 @@ def scrape_urls(webpage_urls):
                                 }
         except:
             print(traceback.print_exc())
+
     df = pd.DataFrame.from_records(scraped_info).T
     scraped_deduped = df.drop_duplicates(subset=['news_url_absolute'])
     print(f'Amount of news scraped: {len(scraped_deduped)}')
